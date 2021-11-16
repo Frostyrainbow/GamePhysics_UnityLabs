@@ -7,6 +7,7 @@ public class physiczobject : MonoBehaviour
     //variables
     public float mass = 1.0f;
     public Vector3 velocity = Vector3.zero;
+    public PhysiczColliderBase shape = null;
 
     // Start is called before the first frame update
     void Start()
@@ -15,9 +16,9 @@ public class physiczobject : MonoBehaviour
     }
 
     // Update is called once per frame
-    void Update()
+    void FixedUpdate()
     {
         //transform.position = new Vector3(0, Mathf.Sin(Time.time), 0);
-        transform.position = transform.position + velocity * Time.deltaTime;
+        transform.position = transform.position + velocity * Time.fixedDeltaTime;
     }
 }
