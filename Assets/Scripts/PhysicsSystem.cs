@@ -187,15 +187,6 @@ public class PhysicsSystem : MonoBehaviour
             Color colorB = b.GetComponent<Renderer>().material.color;
             a.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
             b.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
-        }
-
-        if (isOverlapping)
-        {
-            Debug.Log(a.name + " collided with: " + b.name);
-            Color colorA = a.GetComponent<Renderer>().material.color;
-            Color colorB = b.GetComponent<Renderer>().material.color;
-            a.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
-            b.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
             a.kinematicsObject.velocity *= -0.8f;       // Energy Loss on bounce
             a.transform.Translate(-penetrationDepth);  // Reset position if embedded
         }
