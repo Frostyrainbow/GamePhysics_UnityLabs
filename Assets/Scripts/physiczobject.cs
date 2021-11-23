@@ -5,20 +5,24 @@ using UnityEngine;
 public class physiczobject : MonoBehaviour
 {
     //variables
-    public float mass = 1.0f;
+    public float gravityScale = 1.0f;
     public Vector3 velocity = Vector3.zero;
     public PhysiczColliderBase shape = null;
+    public bool lockPosition = false;
+
 
     // Start is called before the first frame update
     void Start()
     {
-        
+        FindObjectOfType<PhysicsSystem>().physiczobjects.Add(this);
+        shape = GetComponent<PhysiczColliderBase>();
     }
 
     // Update is called once per frame
     void FixedUpdate()
     {
         //transform.position = new Vector3(0, Mathf.Sin(Time.time), 0);
-        transform.position = transform.position + velocity * Time.fixedDeltaTime;
+        
+        
     }
 }

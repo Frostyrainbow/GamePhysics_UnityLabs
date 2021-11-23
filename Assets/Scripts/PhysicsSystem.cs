@@ -7,20 +7,39 @@ public class PhysicsSystem : MonoBehaviour
 
     public Vector3 gravity = new Vector3(0, -9.81f, 0);
     public List<physiczobject> physiczobjects = new List<physiczobject>();
+    //If true this object will not be moved by our physics system
+    
 
     // Start is called before the first frame update
-    void Start()
-    {
-        physiczobject[] objects = FindObjectsOfType<physiczobject>();
-        physiczobjects.AddRange(objects);
-    }
+    //void Start()
+    //{
+    //    physiczobject[] objects = FindObjectsOfType<physiczobject>();
+    //    physiczobjects.AddRange(objects);
+    //}
 
     // Update is called once per frame
     void FixedUpdate()
     {
+
         for (int i = 0; i < physiczobjects.Count; i++)
         {
-            physiczobjects[i].velocity += gravity * Time.fixedDeltaTime;
+            physiczobject obj = physiczobjects[i];
+            if (!obj.lockPosition)
+            {
+                obj.velocity += gravity * obj.gravityScale * Time.fixedDeltaTime;
+            }
+
+            
+        }
+
+        for (int i = 0; i < physiczobjects.Count; i++)
+        {
+            physiczobject obj = physiczobjects[i];
+
+            if (!obj.lockPosition)
+            {
+                obj.transform.position += obj.velocity * Time.fixedDeltaTime;
+            }
         }
 
         CollisionUpdate();
@@ -55,18 +74,53 @@ public class PhysicsSystem : MonoBehaviour
                     //to do specific things with it we need to do a cast to our derived class PhysiczSphere
                     SphereSphereCollision((PhysiczSphere)objectA.shape, (PhysiczSphere)objectB.shape);
                 }
+
+                if (objectA.shape.GetCollisionShape() == CollisionShape.Sphere && objectB.shape.GetCollisionShape() == CollisionShape.Plane)
+                {
+                    SpherePlaneCollision((PhysiczSphere)objectA.shape, (PhysiczPlane)objectB.shape);
+                }
+
+                if (objectA.shape.GetCollisionShape() == CollisionShape.Plane && objectB.shape.GetCollisionShape() == CollisionShape.Sphere)
+                {
+                    SpherePlaneCollision((PhysiczSphere)objectB.shape, (PhysiczPlane)objectA.shape);
+                }
             }
         }
     }
 
-    static void SphereSphereCollision(PhysiczSphere a, PhysiczSphere b)
+    void getLockMovementScalars(physiczobject a, physiczobject b, out float movementScalarA, out float movementScalarB)
     {
-        Vector3 displacement = a.transform.position - b.transform.position;
+        if (a.lockPosition && !b.lockPosition)
+        {
+            movementScalarA = 0.0f;
+            movementScalarB = 1.0f;
+            return;
+        }
+        if (!a.lockPosition && b.lockPosition)
+        {
+            movementScalarA = 1.0f;
+            movementScalarB = 0.0f;
+            return;
+        }
+        if (a.lockPosition && b.lockPosition)
+        {
+            movementScalarA = 0.0f;
+            movementScalarB = 0.0f;
+            return;
+        }
+        movementScalarA = 0.0f;
+        movementScalarB = 0.0f;
+    }
+
+    void SphereSphereCollision(PhysiczSphere a, PhysiczSphere b)
+    {
+        Vector3 displacement = b.transform.position - a.transform.position;
+        
         float distance = displacement.magnitude;
         float sumRadii = a.radius + b.radius;
         bool isOverlapping = distance < sumRadii;
         float penitrationDepth = sumRadii - distance;
-        
+        Vector3 collisionNormalFromAToB;
 
         if (isOverlapping)
         {
@@ -76,10 +130,39 @@ public class PhysicsSystem : MonoBehaviour
             a.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
             b.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
         }
-        
+        else
+        {
+            return;
+        }
+
+        const float minimumDistance = 0.0001f;
+        if (distance < minimumDistance)
+        {
+            distance = minimumDistance;
+            collisionNormalFromAToB = new Vector3(0, penitrationDepth, 0);
+        }
+        else
+        {
+            collisionNormalFromAToB = displacement / distance;
+        }
+
+
+        getLockMovementScalars(a.kinematicsObject, b.kinematicsObject, out float movementScalarA, out float movementScalarB);
+       
+
+       
+
+        //Collision response
+        Vector3 minimumTranslationVectorAtoB = penitrationDepth * -collisionNormalFromAToB;
+        Vector3 translationVectorA = -minimumTranslationVectorAtoB * movementScalarA;
+        Vector3 translationVectorB = minimumTranslationVectorAtoB * movementScalarB;
+
+        a.transform.position += translationVectorA;
+        b.transform.position += translationVectorB;
+
     }
 
-    static void SpherePlaneCollision(PhysiczSphere a, PhysiczPlane b)
+    void SpherePlaneCollision(PhysiczSphere a, PhysiczPlane b)
     {
         //use dot product to find the length of the projection of the sphere onto the plane
         //This gives the shortest distance from the plane to the cente rog the sphere
@@ -94,6 +177,28 @@ public class PhysicsSystem : MonoBehaviour
         //If the sign is positive they are at least somewhat in the same direction
         float dot = Vector3.Dot(fromPlaneToSphere, b.GetNormal());
         float distance = Mathf.Abs(dot);
+        Vector3 penetrationDepth = new Vector3(0.0f, (distance - a.radius), 0.0f);
+        bool isOverlapping = distance < a.radius;
+
+        if (isOverlapping)
+        {
+            Debug.Log(a.name + " collided with: " + b.name);
+            Color colorA = a.GetComponent<Renderer>().material.color;
+            Color colorB = b.GetComponent<Renderer>().material.color;
+            a.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
+            b.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
+        }
+
+        if (isOverlapping)
+        {
+            Debug.Log(a.name + " collided with: " + b.name);
+            Color colorA = a.GetComponent<Renderer>().material.color;
+            Color colorB = b.GetComponent<Renderer>().material.color;
+            a.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
+            b.GetComponent<Renderer>().material.color = Color.Lerp(colorA, colorB, 0.05f);
+            a.kinematicsObject.velocity *= -0.8f;       // Energy Loss on bounce
+            a.transform.Translate(-penetrationDepth);  // Reset position if embedded
+        }
 
     }
 }
