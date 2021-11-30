@@ -9,6 +9,7 @@ public class physiczobject : MonoBehaviour
     public Vector3 velocity = Vector3.zero;
     public PhysiczColliderBase shape = null;
     public bool lockPosition = false;
+    public float bounciness = 0.5f;
 
 
     // Start is called before the first frame update

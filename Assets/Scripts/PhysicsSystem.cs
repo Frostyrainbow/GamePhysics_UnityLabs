@@ -114,7 +114,7 @@ public class PhysicsSystem : MonoBehaviour
 
     void SphereSphereCollision(PhysiczSphere a, PhysiczSphere b)
     {
-        Vector3 displacement = b.transform.position - a.transform.position;
+        Vector3 displacement = a.transform.position - b.transform.position;
         
         float distance = displacement.magnitude;
         float sumRadii = a.radius + b.radius;
@@ -135,7 +135,7 @@ public class PhysicsSystem : MonoBehaviour
             return;
         }
 
-        const float minimumDistance = 0.0001f;
+        const float minimumDistance = 0.001f;
         if (distance < minimumDistance)
         {
             distance = minimumDistance;
@@ -147,18 +147,42 @@ public class PhysicsSystem : MonoBehaviour
         }
 
 
-        getLockMovementScalars(a.kinematicsObject, b.kinematicsObject, out float movementScalarA, out float movementScalarB);
-       
+        //getLockMovementScalars(a.kinematicsObject, b.kinematicsObject, out float movementScalarA, out float movementScalarB);
 
-       
+        Vector3 RelativeVelocity = a.kinematicsObject.velocity - b.kinematicsObject.velocity;
+        Vector3 VelocityNormal = Vector3.Dot(RelativeVelocity, collisionNormalFromAToB) * collisionNormalFromAToB;
+        a.kinematicsObject.velocity = a.kinematicsObject.velocity - VelocityNormal;
+        b.kinematicsObject.velocity = b.kinematicsObject.velocity + VelocityNormal;
+
+
+         float moveScalarA = 0.5f;
+        float moveScalarB = 0.5f;
+
+        if (a.kinematicsObject.lockPosition && !b.kinematicsObject.lockPosition)
+        {
+            moveScalarA = 0.0f;
+            moveScalarB = 1.0f;
+        }
+        if (!a.kinematicsObject.lockPosition && b.kinematicsObject.lockPosition)
+        {
+            moveScalarA = 1.0f;
+            moveScalarB = 0.0f;
+        }
+        if (!a.kinematicsObject.lockPosition && !b.kinematicsObject.lockPosition)
+        {
+            moveScalarA = 0.5f;
+            moveScalarB = 0.5f;
+        }
 
         //Collision response
         Vector3 minimumTranslationVectorAtoB = penitrationDepth * -collisionNormalFromAToB;
-        Vector3 translationVectorA = -minimumTranslationVectorAtoB * movementScalarA;
-        Vector3 translationVectorB = minimumTranslationVectorAtoB * movementScalarB;
+        Vector3 translationVectorA = -minimumTranslationVectorAtoB * moveScalarA;
+        Vector3 translationVectorB = minimumTranslationVectorAtoB * moveScalarB;
 
         a.transform.position += translationVectorA;
         b.transform.position += translationVectorB;
+
+        ApplyKinematicsCollisionResponse(a.kinematicsObject, b.kinematicsObject, collisionNormalFromAToB);
 
     }
 
@@ -191,5 +215,53 @@ public class PhysicsSystem : MonoBehaviour
             a.transform.Translate(-penetrationDepth);  // Reset position if embedded
         }
 
+    }
+
+    void ApplyKinematicsCollisionResponse(physiczobject objectA, physiczobject objectB, Vector3 collisionNormal)
+    {
+        physiczobject objA = objectA.shape.kinematicsObject;
+        physiczobject objB = objectB.shape.kinematicsObject;
+
+        //Find relative velocity between the objects along the normal
+        Vector3 relatveVelocity = objB.velocity - objA.velocity;
+        float relativeNormalVelocity = Vector3.Dot(relatveVelocity, collisionNormal);
+
+        float restitution = 0.5f * (objA.bounciness + objB.bounciness);
+        float changeInVelocity = -relativeNormalVelocity * (1.0f + restitution);
+
+        //A   B     relativeNormalVelocity = 0   no bounce
+        //A   B-->  relativeNormalVelocity = 2    no bounce
+        //<--A  B   relativeNormalVelocity = 2
+        //<--A B--> relativeNormalVelocity = 4    no bounce
+        //A->  B---> relativeNormalVelocity = 2
+        //A--><--B  relativeNormalVelocity = -4    bounce
+        //A--> B    relativeNormalVelocity = -2
+        //A---> B-> relativeNormalVelocity = -2
+        //<-A  <--B relativeNormalVelocity = -1
+
+        if (relativeNormalVelocity >= 0.0f)
+        {
+            return; //No bounce
+        }
+
+
+
+
+        //Handle different events based on whihc objects are locked
+        if (objB.lockPosition && !objA.lockPosition)
+        {
+            //only change A
+            objA.velocity -= changeInVelocity * collisionNormal;
+        }
+        else if (!objB.lockPosition && objA.lockPosition)
+        {
+            //only change B
+            objB.velocity += changeInVelocity * collisionNormal;
+        }
+        else if (!objB.lockPosition && !objA.lockPosition)
+        {
+            //Both change
+
+        }
     }
 }
