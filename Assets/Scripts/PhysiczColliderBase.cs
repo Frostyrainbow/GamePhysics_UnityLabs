@@ -10,7 +10,7 @@ public enum CollisionShape
     AABB
 }
 
-
+[RequireComponent(typeof(physiczobject))]
 public abstract class PhysiczColliderBase : MonoBehaviour
 {
 
